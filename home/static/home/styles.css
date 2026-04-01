@@ -279,6 +279,7 @@ button {
 }
 
 .composer button,
+
 .composer.disabled button {
     background: #42306e;
     color: white;
