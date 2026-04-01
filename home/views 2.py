@@ -1,24 +1,6 @@
-from django.contrib.auth import login
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import UserCreationForm
 from django.shortcuts import get_object_or_404, redirect, render
-
 from .models import Chat, Message
 
-def register_view(request):
-    if request.user.is_authenticated:
-        return redirect('home')
-
-    if request.method == 'POST':
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            return redirect('home')
-    else:
-        form = UserCreationForm()
-
-    return render(request, 'registration/register.html', {'form': form})
 
 def sidebar_context(selected_chat=None):
     return {
@@ -26,25 +8,25 @@ def sidebar_context(selected_chat=None):
         'selected_chat': selected_chat,
     }
 
-@login_required
+
 def home_view(request):
     context = sidebar_context()
     context['messages'] = []
     return render(request, 'home/chat.html', context)
 
-@login_required
+
 def new_chat(request):
     chat = Chat.objects.create(title="New Chat")
     return redirect('chat_detail', chat_id=chat.id)
 
-@login_required
+
 def chat_detail(request, chat_id):
     chat = get_object_or_404(Chat, id=chat_id)
     context = sidebar_context(chat)
     context['messages'] = chat.messages.all()
     return render(request, 'home/chat.html', context)
 
-@login_required
+
 def save_message(request, chat_id):
     chat = get_object_or_404(Chat, id=chat_id)
 
@@ -64,7 +46,7 @@ def save_message(request, chat_id):
 
     return redirect('chat_detail', chat_id=chat.id)
 
-@login_required
+
 def rename_chat(request, chat_id):
     chat = get_object_or_404(Chat, id=chat_id)
 

@@ -316,3 +316,133 @@ button {
         padding-right: 14px;
     }
 }
+
+.topbar {
+    height: 64px;
+    border-bottom: 1px solid #3E4658;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 22px;
+}
+
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.topbar-user {
+    color: #B6BECA;
+    font-size: 14px;
+}
+
+.logout-btn {
+    background: #313847;
+    color: #ECEFF4;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.logout-btn:hover {
+    background: #394152;
+}
+
+.auth-page {
+    min-height: 100vh;
+    background: #2A2F3A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 460px;
+    background: #222833;
+    border: 1px solid #3E4658;
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.auth-brand {
+    margin-bottom: 22px;
+}
+
+.auth-title {
+    font-size: 28px;
+    margin-bottom: 8px;
+    color: #ECEFF4;
+}
+
+.auth-subtitle {
+    color: #B6BECA;
+    margin-bottom: 20px;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.auth-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.auth-field label {
+    font-size: 14px;
+    color: #D8DDE6;
+}
+
+.auth-field input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #3E4658;
+    background: #2E3542;
+    color: #ECEFF4;
+    outline: none;
+}
+
+.auth-field input::placeholder {
+    color: #B6BECA;
+}
+
+.auth-btn {
+    margin-top: 6px;
+    background: #5D7FA3;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-weight: 700;
+}
+
+.auth-btn:hover {
+    background: #6D8FB3;
+}
+
+.auth-switch {
+    margin-top: 18px;
+    color: #B6BECA;
+    text-align: center;
+}
+
+.auth-switch a {
+    color: #ECEFF4;
+    font-weight: 700;
+}
+
+.auth-error {
+    background: rgba(180, 70, 70, 0.18);
+    border: 1px solid rgba(180, 70, 70, 0.45);
+    color: #FFD3D3;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+}

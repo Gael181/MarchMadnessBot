@@ -42,13 +42,20 @@
             <header class="topbar">
                 <div class="topbar-title">
                     {% if selected_chat %}
-                        {{ selected_chat.title }}
+                    {{ selected_chat.title }}
                     {% else %}
-                        MarchMadness AI
+                    MarchMadness AI
                     {% endif %}
                 </div>
+                <div class="topbar-actions">
+        
+                    <span class="topbar-user">{{ request.user.username }}</span>
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="logout-btn">Sign out</button>
+                    </form>
+                </div>
             </header>
-
             <section class="message-area">
                 {% if selected_chat %}
                     {% if messages %}

@@ -1,0 +1,51 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in | MarchMadness AI</title>
+    <link rel="stylesheet" href="{% static 'home/styles.css' %}">
+</head>
+<body>
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="brand auth-brand">
+                <div class="brand-logo">MM</div>
+                <div class="brand-text">MarchMadness AI</div>
+            </div>
+
+            <h1 class="auth-title">Sign in</h1>
+            <p class="auth-subtitle">Enter your account to open your chats.</p>
+
+            {% if form.errors %}
+                <div class="auth-error">Your username or password was incorrect.</div>
+            {% endif %}
+
+            <form method="post" class="auth-form">
+                {% csrf_token %}
+                <div class="auth-field">
+                    <label for="{{ form.username.id_for_label }}">Username</label>
+                    {{ form.username }}
+                </div>
+
+                <div class="auth-field">
+                    <label for="{{ form.password.id_for_label }}">Password</label>
+                    {{ form.password }}
+                </div>
+
+                {% if next %}
+                    <input type="hidden" name="next" value="{{ next }}">
+                {% endif %}
+
+                <button type="submit" class="auth-btn">Sign in</button>
+            </form>
+
+            <p class="auth-switch">
+                Don’t have an account?
+                <a href="{% url 'register' %}">Register</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
