@@ -1,0 +1,157 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarchMadness AI</title>
+    <link rel="stylesheet" href="{% static 'home/styles.css' %}">
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="sidebar-top">
+                <div class="brand">
+                    <div class="brand-logo">MM</div>
+                    <div class="brand-text">MarchMadness AI</div>
+                </div>
+
+                <a href="{% url 'new_chat' %}" class="new-chat-btn">+ New chat</a>
+
+                <div class="search-wrap">
+                    <input type="text" id="chatSearch" placeholder="Search chats">
+                </div>
+            </div>
+
+            <div class="chat-history" id="chatHistory">
+                {% for chat in chats %}
+                    <div class="chat-row {% if selected_chat and selected_chat.id == chat.id %}active{% endif %}" data-title="{{ chat.title|lower }}">
+                        <a href="{% url 'chat_detail' chat.id %}" class="chat-link">
+                            <span class="chat-title">{{ chat.title }}</span>
+                            <span class="chat-date">{{ chat.updated_at|date:"M j" }}</span>
+                        </a>
+                        <button class="rename-btn" onclick="renameChat({{ chat.id }}, '{{ chat.title|escapejs }}')" type="button">✎</button>
+                    </div>
+                {% empty %}
+                    <div class="empty-sidebar">No saved chats yet.</div>
+                {% endfor %}
+            </div>
+        </aside>
+
+        <main class="main-panel">
+            <header class="topbar">
+                <div class="topbar-title">
+                    {% if selected_chat %}
+                        {{ selected_chat.title }}
+                    {% else %}
+                        MarchMadness AI
+                    {% endif %}
+                </div>
+            </header>
+
+            <section class="message-area">
+                {% if selected_chat %}
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="message-row {{ message.role }}">
+                                <div class="avatar">
+                                    {% if message.role == 'user' %}
+                                        You
+                                    {% else %}
+                                        AI
+                                    {% endif %}
+                                </div>
+                                <div class="message-card">
+                                    {{ message.content|linebreaksbr }}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <h1>MarchMadness AI</h1>
+                            <p>Start this chat by typing a message below.</p>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="empty-state">
+                        <h1>MarchMadness AI</h1>
+                        <p>Create a new chat to start using the UI.</p>
+                        <a href="{% url 'new_chat' %}" class="hero-btn">Start new chat</a>
+                    </div>
+                {% endif %}
+            </section>
+
+            <footer class="composer-wrap">
+                {% if selected_chat %}
+                    <form method="post" action="{% url 'save_message' selected_chat.id %}" class="composer">
+                        {% csrf_token %}
+                        <textarea name="content" rows="1" placeholder="Message MarchMadness AI..." required></textarea>
+                        <button type="submit">Send</button>
+                    </form>
+                {% else %}
+                    <div class="composer disabled">
+                        <textarea rows="1" placeholder="Create a new chat first..." disabled></textarea>
+                        <button disabled>Send</button>
+                    </div>
+                {% endif %}
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function renameChat(chatId, currentTitle) {
+            const newTitle = window.prompt("Rename this chat", currentTitle);
+            if (!newTitle || !newTitle.trim()) return;
+
+            fetch(`/chat/${chatId}/rename/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-CSRFToken": getCookie("csrftoken")
+                },
+                body: new URLSearchParams({
+                    title: newTitle.trim()
+                })
+            }).then(() => {
+                window.location.reload();
+            });
+        }
+
+        const searchInput = document.getElementById('chatSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                const query = this.value.toLowerCase().trim();
+                const rows = document.querySelectorAll('.chat-row');
+
+                rows.forEach((row) => {
+                    const title = row.dataset.title || '';
+                    row.style.display = title.includes(query) ? 'flex' : 'none';
+                });
+            });
+        }
+
+        const textarea = document.querySelector('.composer textarea');
+        if (textarea) {
+            textarea.addEventListener('input', function () {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+            });
+        }
+    </script>
+</body>
+</html>
