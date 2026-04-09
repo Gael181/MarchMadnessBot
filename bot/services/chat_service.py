@@ -26,55 +26,28 @@ def extract_teams(question: str):
 
 
 def _friendly_llm_failure_message(exc: Exception) -> str:
-    """Plain-language explanation when the LLM cannot run (bad/missing key, limits, etc.)."""
     raw = str(exc)
     lower = raw.lower()
 
-    if isinstance(exc, ValueError) and "openai_api_key" in lower:
+    if isinstance(exc, ValueError) and (
+        "gemini_api_key" in lower or "google_api_key" in lower
+    ):
         return (
-            "The assistant cannot call OpenAI because OPENAI_API_KEY is not set. "
-            "Set that environment variable to a valid key and restart the server."
+            "The assistant cannot call Gemini because GEMINI_API_KEY is not set. "
+            "Set that environment variable and restart the server."
         )
 
-    _AuthErr = _RateErr = _StatusErr = None
-    try:
-        from openai import APIStatusError, AuthenticationError, RateLimitError
-
-        _AuthErr = AuthenticationError
-        _RateErr = RateLimitError
-        _StatusErr = APIStatusError
-    except ImportError:
-        pass
-
-    if _AuthErr is not None and isinstance(exc, _AuthErr):
+    if "api key" in lower and ("invalid" in lower or "rejected" in lower):
         return (
-            "The OpenAI API key is invalid or not authorized. "
-            "Update OPENAI_API_KEY with a working key from your OpenAI account and try again."
+            "The Gemini API key is invalid or not authorized. "
+            "Update GEMINI_API_KEY and try again."
         )
 
-    if _RateErr is not None and isinstance(exc, _RateErr):
+    if "503" in raw or "quota" in lower or "rate" in lower or "unavailable" in lower:
         return (
-            "OpenAI rate limits were hit. Wait a bit and try again."
+            "Gemini is temporarily unavailable or rate-limited. "
+            "Here is evidence retrieved from the dataset instead:"
         )
-
-    if _StatusErr is not None and isinstance(exc, _StatusErr):
-        code = getattr(exc, "status_code", None)
-        if code == 401:
-            return (
-                "The OpenAI API key was rejected (unauthorized). "
-                "Check OPENAI_API_KEY and try again."
-            )
-        if code == 429:
-            return (
-                "OpenAI rate limits were hit. Wait a bit and try again."
-            )
-
-    if "401" in raw or "invalid_api_key" in lower or "incorrect api key" in lower:
-        return (
-            "The OpenAI API key did not work. Verify OPENAI_API_KEY and try again."
-        )
-    if "429" in raw or ("rate" in lower and "limit" in lower):
-        return "OpenAI rate limits were hit. Wait a bit and try again."
 
     return (
         "The language model could not generate a reply right now. "
