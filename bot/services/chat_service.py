@@ -1,31 +1,35 @@
 from bot.dataset import search
+from bot.services.llm_service import LLMService
 
 
 class ChatService:
     @staticmethod
-    def answer_question(question: str) -> str:
+    def answer_question(question: str, temperature: float = 0.2) -> str:
         results = search(question, top_k=3)
 
         if not results:
             return "I could not find relevant information in the dataset."
 
-        # Build a natural-language summary
-        team_names = list({r["team"] for r in results if r["team"]})
-        team_str = ", ".join(team_names)
-
-        summary_lines = []
-
-        if team_str:
-            summary_lines.append(f"{team_str} appears in the dataset with the following performance:")
-
-        for r in results:
-            summary_lines.append(
-                f"- {r['team']} in {r['season']} "
-                f"had offensive efficiency {r['text'].split('Offensive Efficiency: ')[1].split(',')[0]} "
-                f"and net rating {r['text'].split('Net Rating: ')[1].split(',')[0]}."
+        context_parts = []
+        for result in results:
+            context_parts.append(
+                f"Result {result['rank']}: "
+                f"Team={result['team']}, Season={result['season']}, "
+                f"Conference={result['conference']}, Seed={result['seed']}, "
+                f"Region={result['region']}. Details: {result['text']}"
             )
+        context = "\n".join(context_parts)
 
-        summary_lines.append("")
-        summary_lines.append("These observations are based on the most relevant rows retrieved from the dataset.")
-
-        return "\n".join(summary_lines)
+        try:
+            return LLMService().generate_grounded_answer(
+                question,
+                context,
+                temperature=temperature,
+            )
+        except Exception:
+            lines = [
+                "LLM generation is unavailable right now, so here is the retrieved dataset evidence:"
+            ]
+            for r in results:
+                lines.append(f"- {r['team']} ({r['season']}): {r['text']}")
+            return "\n".join(lines)

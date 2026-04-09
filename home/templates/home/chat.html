@@ -90,6 +90,24 @@
 
             <footer class="composer-wrap">
                 {% if selected_chat %}
+                    <form method="post" action="{% url 'update_temperature' selected_chat.id %}">
+                        {% csrf_token %}
+                        <label for="temperature">Model Temperature:</label>
+                        <input
+                            type="range"
+                            id="temperature"
+                            name="temperature"
+                            min="0"
+                            max="2"
+                            step="0.1"
+                            value="{{ selected_chat.temperature }}"
+                            oninput="this.nextElementSibling.value = this.value"
+                        >
+                        <output>{{ selected_chat.temperature }}</output>
+                        <button type="submit">Save Temperature</button>
+                    </form>
+                    {% endif %}
+                {% if selected_chat %}
                     <form method="post" action="{% url 'save_message' selected_chat.id %}" class="composer">
                         {% csrf_token %}
                         <textarea name="content" rows="1" placeholder="Message MarchMadness AI..." required></textarea>

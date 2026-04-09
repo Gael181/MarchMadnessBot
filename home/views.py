@@ -6,6 +6,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from .models import Chat, Message
 from bot.services.chat_service import ChatService
 
+from django.views.decorators.http import require_POST
+
 def register_view(request):
     if request.user.is_authenticated:
         return redirect('home')
@@ -64,7 +66,10 @@ def save_message(request, chat_id):
                 chat.title = content[:40] + ("..." if len(content) > 40 else "")
                 chat.save()
 
-            assistant_response = ChatService.answer_question(content)
+            assistant_response = ChatService.answer_question(
+                content,
+                temperature=chat.temperature,
+            )
 
             Message.objects.create(
                 chat=chat,
@@ -85,3 +90,22 @@ def rename_chat(request, chat_id):
             chat.save()
 
     return redirect('chat_detail', chat_id=chat.id)
+
+
+@login_required
+@require_POST
+def update_temperature(request, chat_id):
+    chat = get_object_or_404(Chat, id=chat_id, user=request.user)
+
+    value = request.POST.get("temperature", "0.2")
+
+    try:
+        temperature = float(value)
+    except ValueError:
+        temperature = 0.2
+
+    temperature = max(0.0, min(2.0, temperature))
+    chat.temperature = temperature
+    chat.save()
+
+    return redirect("chat_detail", chat_id=chat.id)

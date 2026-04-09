@@ -7,6 +7,7 @@ class Chat(models.Model):
     title = models.CharField(max_length=120, default="New Chat")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    temperature = models.FloatField(default=0.2)
 
     class Meta:
         ordering = ['-updated_at']

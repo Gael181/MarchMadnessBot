@@ -14,3 +14,4 @@ dependencies:
       - transformers==4.52.1
       - accelerate==1.4.0
       - tqdm==4.67.1
+      - openai
