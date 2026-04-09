@@ -1,4 +1,4 @@
-# Generated manually for RagQueryLog
+# RagQueryLog model (admin analytics). Depends on main's message token fields migration.
 
 import django.db.models.deletion
 from django.conf import settings
@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('home', '0002_chat_temperature'),
+        ('home', '0003_message_response_time_message_token_used'),
     ]
 
     operations = [

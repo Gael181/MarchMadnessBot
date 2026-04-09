@@ -86,7 +86,9 @@ def save_message(request, chat_id):
             Message.objects.create(
                 chat=chat,
                 role='assistant',
-                content=answer.text
+                content=answer.text,
+                token_used=answer.token_used,
+                response_time=answer.response_time,
             )
 
     return redirect('chat_detail', chat_id=chat.id)

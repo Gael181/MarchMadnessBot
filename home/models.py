@@ -25,6 +25,8 @@ class Message(models.Model):
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE, related_name='messages')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='user')
     content = models.TextField()
+    token_used = models.CharField(max_length=50, default='N/A')
+    response_time = models.CharField(max_length=50, default='N/A')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
