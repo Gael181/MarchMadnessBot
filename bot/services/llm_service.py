@@ -1,9 +1,10 @@
 import os
-from openai import OpenAI
 
 
 class LLMService:
     def __init__(self):
+        from openai import OpenAI
+
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY is not set.")

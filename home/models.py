@@ -32,3 +32,23 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.role}: {self.content[:40]}"
+
+
+class RagQueryLog(models.Model):
+    """One row per chat turn that invoked retrieval + generation (User Story 10 / 12)."""
+
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='rag_query_logs')
+    created_at = models.DateTimeField(auto_now_add=True)
+    latency_ms = models.PositiveIntegerField()
+    outcome = models.CharField(max_length=32)
+    error_message = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['outcome', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.created_at} {self.outcome} {self.latency_ms}ms"
