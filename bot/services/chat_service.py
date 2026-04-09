@@ -2,9 +2,27 @@ from logging import exception
 
 from bot.dataset import search
 from bot.services.llm_service import LLMService
+import re
 
+def extract_teams(question: str):
+    patterns = [
+        r"compare (.+?) vs (.+)",
+        r"compare (.+?) and (.+)",
+        r"(.+?) vs (.+)",
+    ]
 
-class ChatService:
+    question_lower = question.lower()
+
+    for pattern in patterns:
+        match = re.search(pattern, question_lower)
+        if match:
+            team1 = match.group(1).strip()
+            team2 = match.group(2).strip()
+            return team1, team2
+            
+    return None, None
+
+class ChatService:    
     @staticmethod
     def answer_question(question: str, temperature: float = 0.2) -> dict:
         results = search(question, top_k=3)
