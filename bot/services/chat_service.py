@@ -1,14 +1,20 @@
+from logging import exception
+
 from bot.dataset import search
 from bot.services.llm_service import LLMService
 
 
 class ChatService:
     @staticmethod
-    def answer_question(question: str, temperature: float = 0.2) -> str:
+    def answer_question(question: str, temperature: float = 0.2) -> dict:
         results = search(question, top_k=3)
 
         if not results:
-            return "I could not find relevant information in the dataset."
+            return {
+                'text': "I could not find relevant information in the dataset.",
+                'token_used': 'N/A',
+                'response_time': 'N/A',
+            }
 
         context_parts = []
         for result in results:
@@ -26,10 +32,15 @@ class ChatService:
                 context,
                 temperature=temperature,
             )
-        except Exception:
+        except Exception as e:
+            print(e)
             lines = [
                 "LLM generation is unavailable right now, so here is the retrieved dataset evidence:"
             ]
             for r in results:
                 lines.append(f"- {r['team']} ({r['season']}): {r['text']}")
-            return "\n".join(lines)
+            return {
+                'text': "\n".join(lines),
+                'token_used': 'N/A',
+                'response_time': 'N/A',
+            }
