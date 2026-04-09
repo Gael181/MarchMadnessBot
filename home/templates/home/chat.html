@@ -17,6 +17,9 @@
                 </div>
 
                 <a href="{% url 'new_chat' %}" class="new-chat-btn">+ New chat</a>
+                {% if user.is_staff %}
+                <a href="{% url 'admin_portal' %}" class="sidebar-link-secondary">Analytics</a>
+                {% endif %}
 
                 <div class="search-wrap">
                     <input type="text" id="chatSearch" placeholder="Search chats">

@@ -1,0 +1,153 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics · MarchMadness AI</title>
+    <link rel="stylesheet" href="{% static 'home/styles.css' %}">
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar analytics-sidebar">
+            <div class="sidebar-top">
+                <div class="brand">
+                    <div class="brand-logo">MM</div>
+                    <div class="brand-text">MarchMadness AI</div>
+                </div>
+                <a href="{% url 'home' %}" class="new-chat-btn">← Back to chat</a>
+                <div class="analytics-range">
+                    <span class="analytics-range-label">Range</span>
+                    <div class="analytics-range-btns">
+                        <a href="?range=24h" class="range-pill {% if range_key == '24h' %}active{% endif %}">24h</a>
+                        <a href="?range=7d" class="range-pill {% if range_key == '7d' %}active{% endif %}">7d</a>
+                    </div>
+                </div>
+                <p class="analytics-sidebar-note">Usage logs &amp; response metrics for staff. <span class="muted">({{ window_label }})</span></p>
+            </div>
+        </aside>
+
+        <main class="main-panel">
+            <header class="topbar">
+                <div class="topbar-title">Analytics</div>
+                <div class="topbar-actions">
+                    <span class="topbar-user">{{ request.user.username }}</span>
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="logout-btn">Sign out</button>
+                    </form>
+                </div>
+            </header>
+
+            <section class="analytics-scroll">
+                <header class="analytics-page-head">
+                    <h1>Overview</h1>
+                    <p class="analytics-lead">High-level activity and model health — similar to standard chat product analytics.</p>
+                </header>
+
+                <div class="metric-grid analytics-kpi">
+                    <div class="metric-card">
+                        <div class="metric-label">RAG queries</div>
+                        <div class="metric-value">{{ total_queries }}</div>
+                        <div class="metric-hint">Assistant turns in period</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Active users</div>
+                        <div class="metric-value">{{ unique_query_users }}</div>
+                        <div class="metric-hint">Users who triggered a query</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">User messages</div>
+                        <div class="metric-value">{{ user_messages }}</div>
+                        <div class="metric-hint">Messages sent in period</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">New chats</div>
+                        <div class="metric-value">{{ new_chats }}</div>
+                        <div class="metric-hint">Threads created in period</div>
+                    </div>
+                </div>
+
+                <h2 class="analytics-h2" id="performance">Performance <span class="analytics-tag">User story 10</span></h2>
+                <p class="analytics-section-desc">Latency and failure mix for retrieval + generation. Targets responsiveness and reliability.</p>
+
+                <div class="metric-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Avg response time</div>
+                        <div class="metric-value">{{ avg_latency_ms }}<span class="metric-unit">ms</span></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">p50 / p95</div>
+                        <div class="metric-value metric-value-sm">{{ p50_ms }} / {{ p95_ms }}<span class="metric-unit">ms</span></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">LLM success</div>
+                        <div class="metric-value">{{ success_n }}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Issues / fallbacks</div>
+                        <div class="metric-value">{{ failures_n }} <span class="metric-pct">({{ failure_rate_pct }}%)</span></div>
+                    </div>
+                </div>
+
+                <div class="outcome-chart">
+                    <div class="outcome-chart-title">Outcome mix</div>
+                    <div class="outcome-chart-bars">
+                        {% for row in outcome_bars %}
+                        <div class="outcome-chart-row">
+                            <span class="outcome-chart-key">{{ row.key }}</span>
+                            <div class="outcome-chart-track">
+                                <div class="outcome-chart-fill outcome-{{ row.key }}" style="width: {{ row.pct }}%"></div>
+                            </div>
+                            <span class="outcome-chart-meta">{{ row.count }} <span class="muted">({{ row.pct }}%)</span></span>
+                        </div>
+                        {% empty %}
+                        <p class="muted">No queries in this window yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <h2 class="analytics-h2" id="usage">Usage log <span class="analytics-tag">User story 12</span></h2>
+                <p class="analytics-section-desc">Per-query timestamps, users, and response times — export-friendly table.</p>
+
+                <div class="log-table-wrap">
+                    <table class="log-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp (UTC)</th>
+                                <th>User</th>
+                                <th>Response time</th>
+                                <th>Status</th>
+                                <th>Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in recent_logs %}
+                            <tr>
+                                <td>{{ log.created_at|date:"Y-m-d H:i:s" }}</td>
+                                <td>{% if log.user %}{{ log.user.username }}{% else %}—{% endif %}</td>
+                                <td>{{ log.latency_ms }} ms</td>
+                                <td>
+                                    {% if log.outcome == 'success' %}
+                                    <span class="log-outcome-success">{{ log.outcome }}</span>
+                                    {% elif log.outcome == 'llm_fallback' or log.outcome == 'no_results' %}
+                                    <span class="log-outcome-warning">{{ log.outcome }}</span>
+                                    {% else %}
+                                    <span class="log-outcome-error">{{ log.outcome }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="err-cell" title="{{ log.error_message }}">{{ log.error_message|default:"—"|truncatechars:72 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="muted">No rows yet — use the chat app to generate traffic.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

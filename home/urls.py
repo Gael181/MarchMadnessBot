@@ -21,4 +21,6 @@ urlpatterns = [
     path('chat/<int:chat_id>/send/', views.save_message, name='save_message'),
     path('chat/<int:chat_id>/rename/', views.rename_chat, name='rename_chat'),
     path("chat/<int:chat_id>/temperature/", views.update_temperature, name="update_temperature"),
+    path('ops/analytics/', views.admin_portal, name='admin_portal'),
+    path('ops/performance/', views.admin_portal, name='performance_dashboard'),
 ]
