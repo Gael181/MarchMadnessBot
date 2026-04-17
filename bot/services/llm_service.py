@@ -7,7 +7,7 @@ try:
 except ImportError:
     pass
 
-from google import genai
+import google.generativeai as genai
 
 
 class LLMService:
@@ -124,6 +124,48 @@ Provide:
 - Final comparison summary
 """
 
+        start_time = time.perf_counter()
+        response = self._generate_with_retry(prompt, temperature=temperature)
+        elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+
+        return {
+            "text": (response.text or "").strip(),
+            "token_used": "N/A",
+            "response_time": f"{elapsed_ms}ms",
+        }
+    
+    def generate_trend_answer(
+            self,
+            question: str,
+            context: str,
+            temperature: float = 0.7,
+    ) -> dict:
+        prompt = f"""
+You are a college basketball analytics expert. 
+
+You are analyzing HISTORICAL MARCH MADNESS TRENDS. 
+
+Rules:
+1. ONLY use dataset context. 
+2. Focus on patterns across multiple games/seasons. 
+3. Identify upset frequency patterns (e.g., 12 vs 5, 11 vs 6). 
+4. Summarize trends clearly and concisely. 
+5. If data is insufficient, explicitly say so. 
+6. Do NOT invent statistics. 
+
+User question:
+{question}
+
+Dataset Context:
+{context}
+
+Provide:
+- Most common upset types
+- Frequency patterns observed in the dataset
+- Notable anomalies
+- Brief predictive insight for brackets
+"""
+        
         start_time = time.perf_counter()
         response = self._generate_with_retry(prompt, temperature=temperature)
         elapsed_ms = int((time.perf_counter() - start_time) * 1000)

@@ -5,24 +5,41 @@ from typing import NamedTuple, Optional
 from bot.dataset import search
 from bot.services.llm_service import LLMService
 
+def route_dataset(question: str) -> str:
+    q = question.lower()
+
+    if any (k in q for k in [
+        "upset", "seed", "12 vs 5", "11 vs 6", "historical trend", "how often", "most common upset"
+    ]):
+        return "tournament"
+    
+    return "teams"
 
 def extract_teams(question: str):
     patterns = [
-        r"compare (.+?) vs (.+)",
-        r"compare (.+?) and (.+)",
-        r"(.+?) vs (.+)",
+        r"compare\s+([A-Za-z][A-Za-z0-9 &\-\.\']{0,40}?)\s+vs\s+([A-Za-z][A-Za-z0-9 &\-\.\']{0,40}?)",
+        r"compare\s+([A-Za-z][A-Za-z0-9 &\-\.\']{0,40}?)\s+and\s+([A-Za-z][A-Za-z0-9 &\-\.\']{0,40}?)",
+        r"([A-Za-z][A-Za-z0-9 &\-\.\']{0,40}?)\s+vs\s+([A-Za-z][A-Za-z0-9 &\-\.\']{0,40}?)",
     ]
 
-    question_lower = question.lower()
-
     for pattern in patterns:
-        match = re.search(pattern, question_lower)
+        match = re.search(pattern, question, re.IGNORECASE)
         if match:
             team1 = match.group(1).strip()
             team2 = match.group(2).strip()
+
+            if re.fullmatch(r"\d+", team1) and re.fullmatch(r"\d+", team2):
+                return None, None
+
             return team1, team2
 
     return None, None
+
+def is_trend_query(question: str) -> bool:
+    q = question.lower()
+    return any(k in q for k in [
+        "trend", "how often", "most common", "frequency", "upset"
+    ])
 
 
 def _friendly_llm_failure_message(exc: Exception) -> str:
@@ -88,12 +105,14 @@ class ChatService:
                 response_time=rt,
             )
 
+        # Team Comparison Block -------------------------------------------------------------
+
         team1, team2 = extract_teams(question)
 
         if team1 and team2:
             try:
-                results_team1 = search(team1, top_k=3)
-                results_team2 = search(team2, top_k=3)
+                results_team1 = search(team1, top_k=3, dataset="teams")
+                results_team2 = search(team2, top_k=3, dataset="teams")
             except Exception as exc:
                 return done(
                     "The knowledge search failed. Please try again shortly.",
@@ -141,9 +160,15 @@ class ChatService:
                     "llm_fallback",
                     error_message=str(exc),
                 )
+            
+        # --------------------------------------------------------------------------------------
+
+        dataset = route_dataset(question)
+        is_trend = is_trend_query(question)
+        top_k = 8 if dataset == "tournament" else 3
 
         try:
-            results = search(question, top_k=3)
+            results = search(question, top_k=top_k, dataset=dataset)
         except Exception as exc:
             return done(
                 "The knowledge search failed. Please try again shortly.",
@@ -159,7 +184,10 @@ class ChatService:
 
         context_parts = []
         for result in results:
-            context_parts.append(
+            if dataset == "tournament":
+                context_parts.append(f"{result['text']}")
+            else:
+                context_parts.append(
                 f"Result {result['rank']}: "
                 f"Team={result['team']}, Season={result['season']}, "
                 f"Conference={result['conference']}, Seed={result['seed']}, "
@@ -168,22 +196,69 @@ class ChatService:
         context = "\n".join(context_parts)
 
         try:
-            payload = LLMService().generate_grounded_answer(
-                question,
-                context,
-                temperature=temperature,
-            )
+            llm = LLMService()
+
+            if dataset == "tournament" and is_trend:
+                payload = llm.generate_trend_answer(
+                    question,
+                    context,
+                    temperature=0.7,
+                )
+                outcome = "trend_success"
+            else:
+                payload = LLMService().generate_grounded_answer(
+                    question,
+                    context,
+                    temperature=temperature,
+                )
+                outcome = "success"
+            
             return done(
                 payload["text"].strip(),
-                "success",
+                outcome,
                 token_used=payload.get("token_used", "N/A"),
                 response_time=payload.get("response_time"),
             )
         except Exception as exc:
             header = _friendly_llm_failure_message(exc)
-            lines = [header, "", "Retrieved rows from the dataset:"]
-            for r in results:
-                lines.append(f"- {r['team']} ({r['season']}): {r['text']}")
+            is_trend = is_trend_query(question)
+            dataset = route_dataset(question)
+
+            if is_trend and dataset == "tournament":
+                lines = [header, "", "Upset trend analysis (dataset-driven fallback):"]
+                seed_counts = {}
+
+                for r in results:
+                    text = r["text"].lower()
+
+                    if "12" in text and "5" in text:
+                        seed_counts["12 vs 5"] = seed_counts.get("12 vs 5", 0) + 1
+                    if "11" in text and "6" in text:
+                        seed_counts["11 vs 6"] = seed_counts.get("11 vs 6", 0) + 1
+                    if "10" in text and "7" in text:
+                        seed_counts["10 vs 7"] = seed_counts.get("10 vs 7", 0)+ 1
+
+                lines.append("Observed seed matchup patterns (from retrieved samples):")
+
+                if seed_counts:
+                    for k, v in seed_counts.items():
+                        lines.append(f"- {k}: {v} occurences")
+                else:
+                    lines.append("- No clear upset patterns found in retrieved samples")
+
+                lines.append("\nSample Games:")
+                for r in results:
+                    lines.append(f"{r['text'][:150]}")
+                
+                lines.append(
+                    "\n Note: This is a sample-based estimate, not full dataset statistics."
+                )
+            else:
+                lines = [header, "", "Retrieved rows from the dataset:"]
+
+                for r in results:
+                    lines.append(f"- {r['team']} ({r['season']}): {r['text']}")
+
             return done(
                 "\n".join(lines),
                 "llm_fallback",

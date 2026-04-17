@@ -1,5 +1,8 @@
 from bot.dataset import rebuild_index
 
 if __name__ == "__main__":
-    count = rebuild_index()
-    print(f"Built FAISS index for {count} rows.")
+    datasets = ["teams", "tournament"]
+
+    for ds in datasets:
+        count = rebuild_index(ds)
+        print(f"Built FAISS index for '{ds}' dataset: {count} rows")
