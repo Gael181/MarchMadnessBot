@@ -48,13 +48,13 @@ def is_Upset(row):
     
 
 def get_team_name(row):
-    team_name = row.get("Correct_Team_Name?")
+    team_name = row.get("correct_team_name?")
 
     if pd.isna(team_name) or team_name == "":
-        team_name = row.get("Mapped_ESPN_Team_Name")
+        team_name = row.get("mapped_espn_team_name")
 
     if pd.isna(team_name) or team_name == "":
-        team_name = row.get("Full_Team_Name")
+        team_name = row.get("full_team_name")
 
     if pd.isna(team_name) or team_name == "":
         team_name = "Unknown Team"
@@ -66,24 +66,24 @@ def row_to_text_teams(row):
     team_name = get_team_name(row)
 
     if pd.isna(team_name) or team_name == "":
-        team_name = row.get("Mapped_ESPN_Team_Name")
+        team_name = row.get("mapped_espn_team_name")
 
     if pd.isna(team_name) or team_name == "":
-        team_name = row.get("Full_Team_Name")
+        team_name = row.get("full_team_name")
 
     if pd.isna(team_name) or team_name == "":
         team_name = "Unknown Team"
 
     return (
         f"{team_name} "
-        f"({row.get('Season', 'N/A')} season) "
-        f"in the {row.get('Short_Conference_Name', 'Unknown Conference')} conference. "
-        f"Offensive Efficiency: {row.get('Adjusted_Offensive_Efficiency', 'N/A')}, "
-        f"Defensive Efficiency: {row.get('Adjusted_Defensive_Efficiency', 'N/A')}, "
-        f"Tempo: {row.get('Adjusted_Temo', row.get('Adjusted_Tempo', 'N/A'))}, "
-        f"Net Rating: {row.get('Net_Rating', 'N/A')}, "
-        f"Seed: {row.get('Seed', 'N/A')}, "
-        f"Region: {row.get('Region', 'N/A')}."
+        f"({row.get('season', 'N/A')} season) "
+        f"in the {row.get('short_conference_name', 'unknown conference')} conference. "
+        f"Offensive Efficiency: {row.get('adjusted_offensive_efficiency', 'N/A')}, "
+        f"Defensive Efficiency: {row.get('adjusted_defensive_efficiency', 'N/A')}, "
+        f"Tempo: {row.get('adjusted_tempo', row.get('adjusted_tempo', 'N/A'))}, "
+        f"Net Rating: {row.get('net_rating', 'N/A')}, "
+        f"Seed: {row.get('seed', 'N/A')}, "
+        f"Region: {row.get('region', 'N/A')}."
     )
 
 def row_to_text_tournament(row):
