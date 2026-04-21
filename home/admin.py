@@ -23,7 +23,7 @@ admin.site.register(Message, MessageAdmin)
 
 @admin.register(RagQueryLog)
 class RagQueryLogAdmin(admin.ModelAdmin):
-    list_display = ('created_at', 'user', 'latency_ms', 'outcome')
+    list_display = ('created_at', 'user', 'question_intent', 'latency_ms', 'outcome')
     list_filter = ('outcome',)
     readonly_fields = ('created_at', 'user', 'latency_ms', 'outcome', 'error_message')
     ordering = ('-created_at',)

@@ -7,7 +7,8 @@ try:
 except ImportError:
     pass
 
-import google.generativeai as genai
+import google.genai as genai
+from bot.services.prompts import PromptTemplate
 
 
 class LLMService:
@@ -57,119 +58,34 @@ class LLMService:
 
         raise last_exception
 
-    def generate_grounded_answer(
+    def generate_answer(
         self,
-        question: str,
-        context: str,
-        temperature: float = 1.0,
+        prompt_template: PromptTemplate,
+        template_params: dict,
+        temperature_override: float = None,
     ) -> dict:
-        prompt = f"""
-You are a college basketball assistant.
-
-Rules:
-1. Use the dataset context as your primary evidence.
-2. Explicitly reference supporting evidence from the dataset when available.
-3. Do not invent statistics or seasons not present in the dataset context.
-4. If the dataset context is insufficient, say so clearly.
-5. If the question is general and outside the dataset, you may answer generally, but say that the answer is not grounded in the dataset.
-
-User question:
-{question}
-
-Dataset context:
-{context}
-"""
-
-        start_time = time.perf_counter()
-        response = self._generate_with_retry(prompt, temperature=temperature)
-        elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-
-        return {
-            "text": (response.text or "").strip(),
-            "token_used": "N/A",
-            "response_time": f"{elapsed_ms}ms",
-        }
-
-    def generate_comparison_answer(
-        self,
-        team1: str,
-        team2: str,
-        context1: str,
-        context2: str,
-        temperature: float = 1.0,
-    ) -> dict:
-        prompt = f"""
-You are a college basketball analyst.
-
-Compare the following two teams using ONLY the dataset context.
-
-Rules:
-1. Use only the provided context.
-2. Do not invent stats.
-3. Clearly compare strengths and weaknesses.
-4. Mention specific stats when possible.
-5. End with a short conclusion.
-
-Team 1: {team1}
-Context:
-{context1}
-
-Team 2: {team2}
-Context:
-{context2}
-
-Provide:
-- Key statistical comparison
-- Tournament-related insights if available
-- Final comparison summary
-"""
-
-        start_time = time.perf_counter()
-        response = self._generate_with_retry(prompt, temperature=temperature)
-        elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-
-        return {
-            "text": (response.text or "").strip(),
-            "token_used": "N/A",
-            "response_time": f"{elapsed_ms}ms",
-        }
-    
-    def generate_trend_answer(
-            self,
-            question: str,
-            context: str,
-            temperature: float = 0.7,
-    ) -> dict:
-        prompt = f"""
-You are a college basketball analytics expert. 
-
-You are analyzing HISTORICAL MARCH MADNESS TRENDS. 
-
-Rules:
-1. ONLY use dataset context. 
-2. Focus on patterns across multiple games/seasons. 
-3. Identify upset frequency patterns (e.g., 12 vs 5, 11 vs 6). 
-4. Summarize trends clearly and concisely. 
-5. If data is insufficient, explicitly say so. 
-6. Do NOT invent statistics. 
-
-User question:
-{question}
-
-Dataset Context:
-{context}
-
-Provide:
-- Most common upset types
-- Frequency patterns observed in the dataset
-- Notable anomalies
-- Brief predictive insight for brackets
-"""
+        """
+        Generate an answer using a prompt template with context interpolation.
+        
+        Args:
+            prompt_template: PromptTemplate instance to use
+            template_params: Dict of parameters to interpolate into the template
+                (e.g., {"question": "...", "context": "..."})
+            temperature_override: Optional temperature override; uses template default if None
+        
+        Returns:
+            Dict with "text", "token_used", "response_time" keys
+        """
+        # Build the final prompt
+        prompt_str = prompt_template.build(**template_params)
+        
+        # Use override temperature if provided, otherwise use template default
+        temperature = temperature_override if temperature_override is not None else prompt_template.get_temperature()
         
         start_time = time.perf_counter()
-        response = self._generate_with_retry(prompt, temperature=temperature)
+        response = self._generate_with_retry(prompt_str, temperature=temperature)
         elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-
+        
         return {
             "text": (response.text or "").strip(),
             "token_used": "N/A",
