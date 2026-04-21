@@ -23,7 +23,7 @@ class LLMService:
             raise ValueError("Set GEMINI_API_KEY (preferred) or GOOGLE_API_KEY.")
 
         self.client = genai.Client(api_key=api_key)
-        self.model_name = "gemini-2.5-flash-lite"
+        self.model_name = "gemini-2.5-flash"
 
     def _generate_with_retry(self, prompt: str, temperature: float, max_attempts: int = 4):
         delay = 1.0
