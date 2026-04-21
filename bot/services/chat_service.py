@@ -287,7 +287,7 @@ class ChatService:
 
         dataset = route_dataset(question)
         is_trend = is_trend_query(question)
-        top_k = 8 if dataset == "tournament" else 3
+        top_k = 50 if dataset == "tournament" else 3
 
         try:
             results = search(question, top_k=top_k, dataset=dataset)
