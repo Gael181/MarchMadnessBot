@@ -1,3 +1,5 @@
+import re
+import uuid
 import os
 import pandas as pd
 import numpy as np
@@ -13,6 +15,10 @@ DATASETS = {
     "tournament": {
         "csv": "ncaa_tournament_results.csv",
         "faiss": "tournament_index.faiss"
+    },
+    "admin_uploads": {
+        "csv": "admin_uploads.csv",
+        "faiss": "admin_uploads_index.faiss"
     }
 }
 
@@ -21,7 +27,10 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 STORE = {
     "teams": {"df": None, "index": None},
     "tournament": {"df": None, "index": None},
+    "admin_uploads": {"df": None, "index": None},
 }
+
+
 
 model = None
 faiss_module = None
@@ -106,10 +115,71 @@ def row_to_text_tournament(row):
         f"{team2} (Seed {seed2}) {score2}. "
         f"... Upset: {upset}."
     )
+    
+def clean_text(value):
+    if pd.isna(value):
+        return ""
+
+    value = str(value)
+    value = re.sub(r"\s+", " ", value)
+    return value.strip()
+
+
+def row_to_text_admin_uploads(row):
+    title = row.get("title", "")
+    source = row.get("source", "admin upload")
+    content = row.get("content", "")
+
+    return clean_text(f"Source: {source}. Title: {title}. Content: {content}")
+
+
+def clean_dataframe(df, dataset_name="teams"):
+    df = df.copy()
+
+    df.columns = (
+        df.columns
+        .str.strip()
+        .str.lower()
+        .str.replace("# ", "", regex=False)
+        .str.replace(" ", "_", regex=False)
+    )
+
+    df = df.rename(columns={
+        "adjusted_temo": "adjusted_tempo"
+    })
+
+    df = df.dropna(how="all")
+    df = df.drop_duplicates()
+
+    for col in df.select_dtypes(include=["object"]).columns:
+        df[col] = df[col].apply(clean_text)
+
+    if dataset_name == "admin_uploads":
+        if "content" not in df.columns:
+            text_columns = [col for col in df.columns if col != "text_chunk"]
+            df["content"] = df[text_columns].astype(str).agg(" ".join, axis=1)
+
+        if "title" not in df.columns:
+            df["title"] = "Admin uploaded document"
+
+        if "source" not in df.columns:
+            df["source"] = "admin upload"
+
+    if "text_chunk" not in df.columns:
+        df["text_chunk"] = df.apply(lambda r: _get_row_text(dataset_name, r), axis=1)
+
+    df["text_chunk"] = df["text_chunk"].apply(clean_text)
+    df = df[df["text_chunk"] != ""]
+
+    return df   
 
 def _get_row_text(dataset_name, row):
     if dataset_name == "tournament":
         return row_to_text_tournament(row)
+
+    if dataset_name == "admin_uploads":
+        return row_to_text_admin_uploads(row)
+
     return row_to_text_teams(row)
 
 def initialize(dataset_name="teams"):
@@ -135,17 +205,8 @@ def initialize(dataset_name="teams"):
         raise FileNotFoundError(f"CSV file not found: {csv_file}")
 
     df = pd.read_csv(csv_file, low_memory=False)
-    df.columns = (
-        df.columns
-        .str.strip()
-        .str.lower()
-        .str.replace('# ', '', regex=False)
-        .str.replace(' ', '_', regex=False)
-    )
-    
-    if "text_chunk" not in df.columns:
-        df["text_chunk"] = df.apply(lambda r: _get_row_text(dataset_name, r), axis=1)
-        df.to_csv(csv_file, index=False)
+    df = clean_dataframe(df, dataset_name)
+    df.to_csv(csv_file, index=False)
 
     if os.path.exists(faiss_file):
         index = faiss_module.read_index(faiss_file)
@@ -184,6 +245,63 @@ def rebuild_index(dataset_name="teams"):
 
     return len(texts)
 
+def _reset_dataset_cache(dataset_name):
+    global _initialized, _current_dataset
+
+    STORE[dataset_name]["df"] = None
+    STORE[dataset_name]["index"] = None
+    _initialized = False
+    _current_dataset = None
+
+
+def _save_and_rebuild(df, dataset_name="admin_uploads"):
+    os.makedirs(DATA_PATH, exist_ok=True)
+
+    csv_file = os.path.join(DATA_PATH, DATASETS[dataset_name]["csv"])
+
+    if os.path.exists(csv_file):
+        old_df = pd.read_csv(csv_file, low_memory=False)
+        old_df = clean_dataframe(old_df, dataset_name)
+        df = pd.concat([old_df, df], ignore_index=True)
+
+    df = clean_dataframe(df, dataset_name)
+    df = df.drop_duplicates(subset=["text_chunk"])
+
+    df.to_csv(csv_file, index=False)
+
+    _reset_dataset_cache(dataset_name)
+    return rebuild_index(dataset_name)
+
+
+def ingest_uploaded_csv(uploaded_file, dataset_name="admin_uploads"):
+    if uploaded_file is None:
+        raise ValueError("No CSV file uploaded.")
+
+    df = pd.read_csv(uploaded_file, low_memory=False)
+    df = clean_dataframe(df, dataset_name)
+
+    return _save_and_rebuild(df, dataset_name)
+
+
+def ingest_raw_text(raw_text, title="Admin pasted text", dataset_name="admin_uploads"):
+    raw_text = clean_text(raw_text)
+
+    if not raw_text:
+        raise ValueError("No text was provided.")
+
+    df = pd.DataFrame([
+        {
+            "id": str(uuid.uuid4()),
+            "title": title or "Admin pasted text",
+            "source": "manual text upload",
+            "content": raw_text,
+        }
+    ])
+
+    df = clean_dataframe(df, dataset_name)
+
+    return _save_and_rebuild(df, dataset_name)
+
 
 def search(query, top_k=3, dataset="teams"):
     initialize(dataset)
@@ -205,10 +323,10 @@ def search(query, top_k=3, dataset="teams"):
             "rank": rank + 1,
             "text": row["text_chunk"],
             "team": get_team_name(row),
-            "season": row.get("Season", "N/A"),
-            "conference": row.get("Short_Conference_Name", "N/A"),
-            "seed": row.get("Seed", "N/A"),
-            "region": row.get("Region", "N/A"),
+            "season": row.get("season", "N/A"),
+            "conference": row.get("short_conference_name", "N/A"),
+            "seed": row.get("seed", "N/A"),
+            "region": row.get("region", "N/A"),
             "distance": float(distances[0][rank]),
         })
 

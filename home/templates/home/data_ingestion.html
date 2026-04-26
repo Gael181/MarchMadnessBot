@@ -1,0 +1,104 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Ingestion · MarchMadness AI</title>
+    <link rel="stylesheet" href="{% static 'home/styles.css' %}">
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar analytics-sidebar">
+            <div class="sidebar-top">
+                <div class="brand">
+                    <div class="brand-logo">MM</div>
+                    <div class="brand-text">MarchMadness AI</div>
+                </div>
+
+                <a href="{% url 'home' %}" class="new-chat-btn">← Back to chat</a>
+                <a href="{% url 'admin_portal' %}" class="sidebar-link-secondary">Analytics</a>
+
+                <p class="analytics-sidebar-note">
+                    Staff-only tools for adding and cleaning knowledge base data.
+                </p>
+            </div>
+        </aside>
+
+        <main class="main-panel">
+            <header class="topbar">
+                <div class="topbar-title">Data Ingestion</div>
+                <div class="topbar-actions">
+                    <span class="topbar-user">{{ request.user.username }}</span>
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="logout-btn">Sign out</button>
+                    </form>
+                </div>
+            </header>
+
+            <section class="analytics-scroll">
+                <header class="analytics-page-head">
+                    <h1>Knowledge Base Ingestion</h1>
+                    <p class="analytics-lead">
+                        Add new data to the RAG knowledge base using multiple ingestion methods.
+                        Data is cleaned, converted into text chunks, embedded, and indexed with FAISS.
+                    </p>
+                </header>
+
+                {% if messages %}
+                    <div class="ingestion-messages">
+                        {% for message in messages %}
+                            <div class="ingestion-message {{ message.tags }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                
+                <p class="analytics-section-desc">
+                    Upload a CSV file. The system will clean the rows, generate text chunks, and rebuild the FAISS index.
+                </p>
+
+                <form method="post" enctype="multipart/form-data" class="ingestion-card">
+                    {% csrf_token %}
+                    <input type="hidden" name="ingestion_type" value="csv">
+
+                    <label class="ingestion-label" for="csv_file">CSV file</label>
+                    <input class="ingestion-input" type="file" id="csv_file" name="csv_file" accept=".csv" required>
+
+                    <button type="submit" class="ingestion-btn">Upload and Index CSV</button>
+                </form>
+
+                
+                <p class="analytics-section-desc">
+                    Paste text directly into the knowledge base. This provides a second ingestion method beyond file upload.
+                </p>
+
+                <form method="post" class="ingestion-card">
+                    {% csrf_token %}
+                    <input type="hidden" name="ingestion_type" value="text">
+
+                    <label class="ingestion-label" for="title">Title</label>
+                    <input class="ingestion-input" type="text" id="title" name="title" placeholder="Example: 2024 March Madness Notes">
+
+                    <label class="ingestion-label" for="raw_text">Raw text</label>
+                    <textarea class="ingestion-textarea" id="raw_text" name="raw_text" rows="8" placeholder="Paste new knowledge base text here..." required></textarea>
+
+                    <button type="submit" class="ingestion-btn">Clean and Index Text</button>
+                </form>
+
+                
+                <div class="ingestion-card">
+                    <p class="analytics-section-desc">
+                        Before data is indexed, the app preprocesses it by normalizing column names,
+                        removing empty rows, removing duplicates, cleaning whitespace, fixing known column naming issues,
+                        and creating standardized text chunks for retrieval.
+                    </p>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
