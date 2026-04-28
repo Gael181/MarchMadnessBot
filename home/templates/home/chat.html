@@ -77,16 +77,21 @@
                                     <div class="message-card">
                                         {{ message.content|linebreaksbr }}
                                     </div>
+                                    {% if message.role == "assistant" and message.sources %}
+                                    <details class="sources-box">
+                                        <summary>Sources ({{ message.sources|length }}) ▼</summary>
 
-                                    {% if message.role == 'assistant' and message.response_time != 'N/A' %}
-                                        <div class="message-intent-card{% if message.question_intent %} intent-{{ message.question_intent }}{% endif %}">
-                                            <span class="response-time">{{ message.response_time }}</span>
-                                            {% if message.question_intent %}
-                                                <span class="intent-badge intent-{{ message.question_intent }}" aria-label="Question intent: {{ message.question_intent|intent_display }}">
-                                                    {{ message.question_intent|intent_display }}
-                                                </span>
-                                            {% endif %}
-                                        </div>
+                                        <ul class="sources-list">
+                                            {% for source in message.sources %}
+                                            <li>
+                                                <details class="source-text">
+                                                    <summary>{{ source.label }}</summary>
+                                                    <p>{{ source.text }}</p>
+                                                </details>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </details>
                                     {% endif %}
                                 </div>
                             </div>

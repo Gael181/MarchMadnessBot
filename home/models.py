@@ -33,6 +33,7 @@ class Message(models.Model):
         blank=True,
         help_text="Detected question intent for assistant responses (e.g., factual_lookup, team_comparison)"
     )
+    sources = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

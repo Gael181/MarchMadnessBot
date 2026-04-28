@@ -219,6 +219,47 @@ class ChatAnswer(NamedTuple):
     token_used: str = "N/A"
     response_time: str = "N/A"
     question_intent: str = ""
+    sources: list = []
+
+def _json_safe(value):
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except Exception:
+        pass
+    return str(value)
+
+
+def format_sources(results, dataset: str):
+    sources = []
+
+    for i, r in enumerate(results, start=1):
+        if dataset == "tournament":
+            sources.append({
+                "label": f"Source {_json_safe(r.get('rank', i))}",
+                "type": "Tournament Result",
+                "team": "",
+                "season": "",
+                "metadata": "NCAA Tournament Results",
+                "text": _json_safe(r.get("text", "")),
+            })
+        else:
+            sources.append({
+                "label": f"Source {_json_safe(r.get('rank', i))}",
+                "type": "Team Season Row",
+                "team": _json_safe(r.get("team", "")),
+                "season": _json_safe(r.get("season", "")),
+                "metadata": (
+                    f"{_json_safe(r.get('conference', ''))} | "
+                    f"Seed {_json_safe(r.get('seed', ''))} | "
+                    f"{_json_safe(r.get('region', ''))}"
+                ),
+                "text": _json_safe(r.get("text", "")),
+            })
+
+    return sources
 
 
 class ChatService:
@@ -237,6 +278,7 @@ class ChatService:
             error_message: Optional[str] = None,
             token_used: str = "N/A",
             response_time: Optional[str] = None,
+            sources: Optional[list] = None,
         ) -> ChatAnswer:
             elapsed_ms = (time.perf_counter() - t0) * 1000
             rt = response_time if response_time is not None else f"{int(round(elapsed_ms))}ms"
@@ -248,6 +290,7 @@ class ChatService:
                 token_used=token_used,
                 response_time=rt,
                 question_intent=intent_str,
+                sources=sources or [],
             )
 
         # Seed Matchup Block ---------------------------------------------------------------------
