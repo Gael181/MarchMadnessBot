@@ -18,10 +18,6 @@
 
                 <a href="{% url 'home' %}" class="new-chat-btn">← Back to chat</a>
                 <a href="{% url 'admin_portal' %}" class="sidebar-link-secondary">Analytics</a>
-
-                <p class="analytics-sidebar-note">
-                    Staff-only tools for adding and cleaning knowledge base data.
-                </p>
             </div>
         </aside>
 
@@ -40,10 +36,6 @@
             <section class="analytics-scroll">
                 <header class="analytics-page-head">
                     <h1>Knowledge Base Ingestion</h1>
-                    <p class="analytics-lead">
-                        Add new data to the RAG knowledge base using multiple ingestion methods.
-                        Data is cleaned, converted into text chunks, embedded, and indexed with FAISS.
-                    </p>
                 </header>
 
                 {% if messages %}
@@ -55,12 +47,6 @@
                         {% endfor %}
                     </div>
                 {% endif %}
-
-                
-                <p class="analytics-section-desc">
-                    Upload a CSV file. The system will clean the rows, generate text chunks, and rebuild the FAISS index.
-                </p>
-
                 <form method="post" enctype="multipart/form-data" class="ingestion-card">
                     {% csrf_token %}
                     <input type="hidden" name="ingestion_type" value="csv">
@@ -73,7 +59,6 @@
 
                 
                 <p class="analytics-section-desc">
-                    Paste text directly into the knowledge base. This provides a second ingestion method beyond file upload.
                 </p>
 
                 <form method="post" class="ingestion-card">
@@ -88,15 +73,6 @@
 
                     <button type="submit" class="ingestion-btn">Clean and Index Text</button>
                 </form>
-
-                
-                <div class="ingestion-card">
-                    <p class="analytics-section-desc">
-                        Before data is indexed, the app preprocesses it by normalizing column names,
-                        removing empty rows, removing duplicates, cleaning whitespace, fixing known column naming issues,
-                        and creating standardized text chunks for retrieval.
-                    </p>
-                </div>
             </section>
         </main>
     </div>
