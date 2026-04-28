@@ -36,6 +36,9 @@
             <section class="analytics-scroll">
                 <header class="analytics-page-head">
                     <h1>Knowledge Base Ingestion</h1>
+                    <p class="analytics-lead">
+                        Upload, paste, view, and delete knowledge base data. Uploaded data can be removed with the × button.
+                    </p>
                 </header>
 
                 {% if messages %}
@@ -47,6 +50,124 @@
                         {% endfor %}
                     </div>
                 {% endif %}
+
+               <h2 class="analytics-h2">Current Datasets</h2>
+
+
+               <div class="dataset-list">
+    
+                {% for item in dataset_summaries %}
+        
+                <div class="data-banner dataset-banner">
+            
+                    <div class="data-banner-body">
+                
+                        <div class="data-banner-title">{{ item.name }}</div>
+                
+                        <div class="data-banner-subtitle">
+                    
+                            CSV: {{ item.csv }} · Rows: {{ item.row_count }}
+                    
+                            {% if item.faiss_exists %}
+                        
+                            · FAISS index: yes
+                    
+                            {% else %}
+                        
+                            · FAISS index: no
+                    
+                            {% endif %}
+                
+                        </div>
+            
+                    </div>
+
+            
+                    <div class="data-banner-actions">
+                
+                        {% if item.can_delete and item.row_count > 0 %}
+                    
+                        <form method="post" onsubmit="return confirm('Delete all uploaded admin data?');">
+                        
+                            {% csrf_token %}
+                        
+                            <input type="hidden" name="ingestion_type" value="clear_admin_uploads">
+                        
+                            <button type="submit" class="banner-delete-btn" title="Delete all uploaded data">×</button>
+                    
+                        </form>
+                
+                        {% else %}
+                    
+                        <span class="banner-protected-badge">Protected</span>
+                
+                        {% endif %}
+            
+                    </div>
+        
+                </div>
+    
+                {% empty %}
+        
+                <div class="empty-uploaded-data">No datasets found.</div>
+    
+                {% endfor %}
+
+            </div>
+
+
+            <h2 class="analytics-h2">Uploaded Data</h2>
+
+
+            <div class="uploaded-data-list">
+    
+                {% for row in admin_upload_rows %}
+        
+                <div class="data-banner uploaded-banner">
+            
+                    <div class="data-banner-body">
+                
+                        <div class="data-banner-title">{{ row.title }}</div>
+                
+                        <div class="data-banner-subtitle">{{ row.source }}</div>
+                
+                        <div class="data-banner-preview">{{ row.preview }}</div>
+            
+                    </div>
+
+            
+                    <div class="data-banner-actions">
+                
+                        <form method="post" onsubmit="return confirm('Delete this uploaded data row?');">
+                    
+                            {% csrf_token %}
+                    
+                            <input type="hidden" name="ingestion_type" value="delete_row">
+                    
+                            <input type="hidden" name="row_index" value="{{ row.index }}">
+                    
+                            <button type="submit" class="banner-delete-btn" title="Delete this item">×</button>
+                
+                        </form>
+            
+                    </div>
+        
+                </div>
+    
+                {% empty %}
+        
+                <div class="empty-uploaded-data">
+            
+                    No uploaded CSV or raw text data yet.
+        
+                </div>
+    
+                {% endfor %}
+
+            </div>
+
+                <h2 class="analytics-h2">Upload CSV</h2>
+
                 <form method="post" enctype="multipart/form-data" class="ingestion-card">
                     {% csrf_token %}
                     <input type="hidden" name="ingestion_type" value="csv">
@@ -57,9 +178,7 @@
                     <button type="submit" class="ingestion-btn">Upload and Index CSV</button>
                 </form>
 
-                
-                <p class="analytics-section-desc">
-                </p>
+                <h2 class="analytics-h2">Paste Raw Text</h2>
 
                 <form method="post" class="ingestion-card">
                     {% csrf_token %}

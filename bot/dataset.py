@@ -308,7 +308,8 @@ def search(query, top_k=3, dataset="teams"):
 
     df = STORE[dataset]["df"]
     index = STORE[dataset]["index"]
-
+    if df is None or df.empty or index is None or index.ntotal == 0:
+        return []
     query_embedding = model.encode([query])
     query_embedding = np.array(query_embedding, dtype=np.float32)
 
@@ -331,3 +332,110 @@ def search(query, top_k=3, dataset="teams"):
         })
 
     return results
+
+def get_dataset_summary():
+    summaries = []
+
+    for dataset_name, config in DATASETS.items():
+        csv_file = os.path.join(DATA_PATH, config["csv"])
+        faiss_file = os.path.join(DATA_PATH, config["faiss"])
+
+        row_count = 0
+        exists = os.path.exists(csv_file)
+
+        if exists:
+            try:
+                df = pd.read_csv(csv_file, low_memory=False)
+                row_count = len(df)
+            except Exception:
+                row_count = 0
+
+        summaries.append({
+            "name": dataset_name,
+            "csv": config["csv"],
+            "faiss": config["faiss"],
+            "csv_exists": exists,
+            "faiss_exists": os.path.exists(faiss_file),
+            "row_count": row_count,
+            "can_delete": dataset_name == "admin_uploads",
+        })
+
+    return summaries
+
+
+def list_admin_upload_rows():
+    csv_file = os.path.join(DATA_PATH, DATASETS["admin_uploads"]["csv"])
+
+    if not os.path.exists(csv_file):
+        return []
+
+    df = pd.read_csv(csv_file, low_memory=False)
+
+    if df.empty:
+        return []
+
+    rows = []
+
+    for index, row in df.iterrows():
+        title = row.get("title", "Uploaded data")
+        source = row.get("source", "admin upload")
+        content = row.get("content", "")
+        text_chunk = row.get("text_chunk", "")
+
+        preview = content if str(content).strip() else text_chunk
+        preview = str(preview).replace("\n", " ").strip()
+
+        if len(preview) > 20:
+            preview = preview[:25] + "..."
+
+        rows.append({
+            "index": index,
+            "title": title if str(title).strip() else "Uploaded data",
+            "source": source if str(source).strip() else "admin upload",
+            "preview": preview,
+        })
+
+    return rows
+
+
+def _remove_file_if_exists(path):
+    if os.path.exists(path):
+        os.remove(path)
+
+
+def delete_admin_upload_row(row_index):
+    csv_file = os.path.join(DATA_PATH, DATASETS["admin_uploads"]["csv"])
+    faiss_file = os.path.join(DATA_PATH, DATASETS["admin_uploads"]["faiss"])
+
+    if not os.path.exists(csv_file):
+        raise FileNotFoundError("No admin upload dataset exists yet.")
+
+    df = pd.read_csv(csv_file, low_memory=False)
+
+    if row_index < 0 or row_index >= len(df):
+        raise IndexError("Selected row does not exist.")
+
+    df = df.drop(index=row_index).reset_index(drop=True)
+
+    if df.empty:
+        df.to_csv(csv_file, index=False)
+        _remove_file_if_exists(faiss_file)
+        _reset_dataset_cache("admin_uploads")
+        return 0
+
+    df = clean_dataframe(df, "admin_uploads")
+    df.to_csv(csv_file, index=False)
+
+    _reset_dataset_cache("admin_uploads")
+    return rebuild_index("admin_uploads")
+
+
+def clear_admin_uploads():
+    csv_file = os.path.join(DATA_PATH, DATASETS["admin_uploads"]["csv"])
+    faiss_file = os.path.join(DATA_PATH, DATASETS["admin_uploads"]["faiss"])
+
+    _remove_file_if_exists(csv_file)
+    _remove_file_if_exists(faiss_file)
+    _reset_dataset_cache("admin_uploads")
+
+    return 0

@@ -142,44 +142,53 @@ def _percentile(sorted_vals, p: float) -> float:
 
 @login_required
 def data_ingestion(request):
-    """Staff-only data ingestion page"""
+    """Staff-only data ingestion and deletion page."""
     if not request.user.is_staff:
         raise PermissionDenied
 
     if request.method == "POST":
         ingestion_type = request.POST.get("ingestion_type")
-
         try:
             if ingestion_type == "csv":
                 uploaded_file = request.FILES.get("csv_file")
                 rows_indexed = dataset.ingest_uploaded_csv(uploaded_file)
-
                 messages.success(
                     request,
                     f"CSV uploaded, cleaned, and indexed successfully. Total indexed rows: {rows_indexed}."
                 )
-
             elif ingestion_type == "text":
                 title = request.POST.get("title", "").strip()
                 raw_text = request.POST.get("raw_text", "").strip()
 
                 rows_indexed = dataset.ingest_raw_text(raw_text, title=title)
-
                 messages.success(
                     request,
                     f"Text cleaned and indexed successfully. Total indexed rows: {rows_indexed}."
                 )
+            elif ingestion_type == "delete_row":
+                row_index = int(request.POST.get("row_index"))
+                rows_left = dataset.delete_admin_upload_row(row_index)
 
+                messages.success(
+                    request,
+                    f"Deleted uploaded data row. Remaining indexed rows: {rows_left}."
+                )
+            elif ingestion_type == "clear_admin_uploads":
+                dataset.clear_admin_uploads()
+                messages.success(
+                    request,
+                    "All uploaded admin data was deleted."
+                )
             else:
-                messages.error(request, "Invalid ingestion type selected.")
-
+                messages.error(request, "Invalid ingestion action selected.")
         except Exception as e:
-            messages.error(request, f"Ingestion failed: {e}")
-
+            messages.error(request, f"Action failed: {e}")
         return redirect("data_ingestion")
-
-    return render(request, "home/data_ingestion.html")
-
+    context = {
+        "dataset_summaries": dataset.get_dataset_summary(),
+        "admin_upload_rows": dataset.list_admin_upload_rows(),
+    }
+    return render(request, "home/data_ingestion.html", context)
 @login_required
 def admin_portal(request):
     """Staff analytics: usage logs (US12) + performance / reliability (US10)."""
