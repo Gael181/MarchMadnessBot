@@ -92,6 +92,7 @@ def save_message(request, chat_id):
                 content=answer.text,
                 token_used=answer.token_used,
                 response_time=answer.response_time,
+                question_intent=answer.question_intent,
             )
 
     return redirect('chat_detail', chat_id=chat.id)

@@ -27,6 +27,12 @@ class Message(models.Model):
     content = models.TextField()
     token_used = models.CharField(max_length=50, default='N/A')
     response_time = models.CharField(max_length=50, default='N/A')
+    question_intent = models.CharField(
+        max_length=50,
+        default="",
+        blank=True,
+        help_text="Detected question intent for assistant responses (e.g., factual_lookup, team_comparison)"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
