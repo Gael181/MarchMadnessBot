@@ -77,6 +77,11 @@
                                     <div class="message-card">
                                         {{ message.content|linebreaksbr }}
                                     </div>
+                                    {% if message.question_intent %}
+                                                <span class="intent-badge intent-{{ message.question_intent }}" aria-label="Question intent: {{ message.question_intent|intent_display }}">
+                                                    {{ message.question_intent|intent_display }}
+                                                </span>
+                                    {% endif %}
                                     {% if message.role == "assistant" and message.sources %}
                                     <details class="sources-box">
                                         <summary>Sources ({{ message.sources|length }}) ▼</summary>

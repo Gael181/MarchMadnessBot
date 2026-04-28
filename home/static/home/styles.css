@@ -1075,3 +1075,52 @@ button {
     color: #aeb8c8;
     font-size: 14px;
 }
+
+.sources-box {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-left: 3px solid #7c8cff;
+    background: #151722;
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+.sources-box > summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #aab2ff;
+    list-style: none;
+}
+
+.sources-box > summary::-webkit-details-marker {
+    display: none;
+}
+
+.sources-box[open] > summary {
+    margin-bottom: 6px;
+}
+
+.sources-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.sources-list li {
+    margin-bottom: 6px;
+}
+
+.source-text summary {
+    cursor: pointer;
+    color: #9aa4ff;
+    font-weight: 500;
+}
+
+.source-text p {
+    margin: 4px 0 0 0;
+    padding: 6px 8px;
+    background: #1b1e2a;
+    border-radius: 6px;
+    color: #d7dbea;
+    font-size: 0.8rem;
+}
