@@ -2,20 +2,24 @@ import re
 import time
 from typing import NamedTuple, Optional, Tuple
 
+import pandas as pd
+
 from bot.dataset import search, initialize, STORE, is_Upset
 from bot.services.llm_service import LLMService
 from bot.services.prompts import QuestionIntent, PromptSelector
 
+
 def route_dataset(question: str) -> str:
     q = question.lower()
 
-    if any (k in q for k in [
+    if any(k in q for k in [
         "upset", "seed", "12 vs 5", "11 vs 6",
         "historical trend", "how often", "most common upset"
     ]):
         return "tournament"
-    
+
     return "teams"
+
 
 def extract_teams(question: str):
     STOP = r"(?=\s*(?:$|[?!.,;]|\bin\b|\bfor\b|\bfrom\b|\bduring\b|\bover\b|\bseason\b))"
@@ -38,9 +42,10 @@ def extract_teams(question: str):
 
     return None, None
 
+
 def extract_seeds(question: str) -> Tuple[Optional[int], Optional[int]]:
     q = question.lower()
-    
+
     primary = (
         r"#?(\d{1,2})\s*[-]?\s*(?:seed|seeds)?\s*"
         r"(?:vs\.?|versus|against|v\.)\s*"
@@ -49,9 +54,9 @@ def extract_seeds(question: str) -> Tuple[Optional[int], Optional[int]]:
     m = re.search(primary, q)
     if m:
         a, b = int(m.group(1)), int(m.group(2))
-        if 1 <= a <= 16 and 1 <= b <= 16 and a!= b:
+        if 1 <= a <= 16 and 1 <= b <= 16 and a != b:
             return a, b
-        
+
     verbish = (
         r"(?:a\s+)?#?(\d{1,2})(?:\s*[-]?\s*seeds?)?\s+"
         r"(?:upsets?|beats?|over|defeats?|knock(?:s|ed)?\s*(?:off)?)\s+"
@@ -62,13 +67,14 @@ def extract_seeds(question: str) -> Tuple[Optional[int], Optional[int]]:
         a, b = int(m.group(1)), int(m.group(2))
         if 1 <= a <= 16 and 1 <= b <= 16 and a != b:
             return a, b
-        
+
     seed_mentions = re.findall(r"#?(\d{1,2})[\s-]*seeds?\b", q)
     valid = [int(s) for s in seed_mentions if 1 <= int(s) <= 16]
     if len(valid) >= 2 and valid[0] != valid[1]:
         return valid[0], valid[1]
- 
+
     return None, None
+
 
 def is_trend_query(question: str) -> bool:
     q = question.lower()
@@ -76,8 +82,8 @@ def is_trend_query(question: str) -> bool:
         "trend", "how often", "most common", "frequency", "upset"
     ])
 
+
 def is_team_stats_query(question: str) -> bool:
-    """Detect queries focused on team statistics and records."""
     q = question.lower()
     return any(k in q for k in [
         "stats", "record", "how many", "what is the record",
@@ -85,8 +91,8 @@ def is_team_stats_query(question: str) -> bool:
         "conference record", "seed history"
     ])
 
+
 def is_prediction_query(question: str) -> bool:
-    """Detect hypothetical prediction queries."""
     q = question.lower()
     return any(k in q for k in [
         "would", "if ", "how would", "could ", "match up",
@@ -94,8 +100,8 @@ def is_prediction_query(question: str) -> bool:
         "who would win"
     ])
 
+
 def is_rules_query(question: str) -> bool:
-    """Detect tournament rules and structure explanation queries."""
     q = question.lower()
     return any(k in q for k in [
         "what is", "what does", "mean", "explain", "rule",
@@ -103,66 +109,39 @@ def is_rules_query(question: str) -> bool:
         "bracket", "what's a"
     ])
 
+
 def detect_intent(question: str) -> Tuple[QuestionIntent, dict]:
-    """
-    Detect the primary intent of a user question.
-    
-    Returns a tuple of (QuestionIntent, metadata_dict) where metadata includes:
-    - For SEED_MATCHUP: "seed_a", "seed_b"
-    - For TEAM_COMPARISON: "team1", "team2"
-    - For TEAM_STATS: "team"
-    - For PREDICTION: "team1", "team2"
-    - For others: {}
-    
-    Decision tree:
-    1. Seed matchup (specific seed numbers)
-    2. Team comparison (two teams mentioned)
-    3. Trend analysis (trend/upset keywords + tournament context)
-    4. Team stats (stats/record keywords)
-    5. Prediction (hypothetical keywords)
-    6. Rules explanation (explanation keywords)
-    7. Fallback to factual lookup
-    """
     metadata = {}
-    
-    # Check for seed matchup first (most specific)
+
     seed_a, seed_b = extract_seeds(question)
     if seed_a is not None and seed_b is not None:
         metadata = {"seed_a": seed_a, "seed_b": seed_b}
         return QuestionIntent.SEED_MATCHUP, metadata
-    
-    # Check for team comparison (two teams)
+
     team1, team2 = extract_teams(question)
     if team1 and team2:
-        # If it looks like a prediction, classify as prediction instead
-        if is_prediction_query(question):
-            metadata = {"team1": team1, "team2": team2}
-            return QuestionIntent.PREDICTION, metadata
-        # Otherwise it's a comparison
         metadata = {"team1": team1, "team2": team2}
+        if is_prediction_query(question):
+            return QuestionIntent.PREDICTION, metadata
         return QuestionIntent.TEAM_COMPARISON, metadata
-    
-    # Check for trend analysis (specific keywords + tournament dataset)
+
     if is_trend_query(question):
         dataset = route_dataset(question)
         if dataset == "tournament":
             return QuestionIntent.TREND_ANALYSIS, metadata
-    
-    # Check for team stats (one team mentioned)
+
     if is_team_stats_query(question) and team1:
         metadata = {"team": team1}
         return QuestionIntent.TEAM_STATS, metadata
-    
-    # Check for prediction (but no specific teams extracted yet)
+
     if is_prediction_query(question):
         return QuestionIntent.PREDICTION, metadata
-    
-    # Check for rules/explanation
+
     if is_rules_query(question):
         return QuestionIntent.RULES_EXPLANATION, metadata
-    
-    # Default fallback
+
     return QuestionIntent.FACTUAL_LOOKUP, metadata
+
 
 def _filter_tournament_by_seeds(seed_a: int, seed_b: int):
     initialize("tournament")
@@ -179,7 +158,7 @@ def _filter_tournament_by_seeds(seed_a: int, seed_b: int):
     upsets = matching[matching.apply(is_Upset, axis=1)]
     return matching, upsets
 
-import pandas as pd
+
 def _friendly_llm_failure_message(exc: Exception) -> str:
     raw = str(exc)
     lower = raw.lower()
@@ -207,19 +186,9 @@ def _friendly_llm_failure_message(exc: Exception) -> str:
     return (
         "The language model could not generate a reply right now. "
         "Here is evidence retrieved from the dataset instead:\n"
-        +"error = "+lower
+        + "error = " + lower
     )
 
-
-class ChatAnswer(NamedTuple):
-    text: str
-    latency_ms: float
-    outcome: str
-    error_message: Optional[str] = None
-    token_used: str = "N/A"
-    response_time: str = "N/A"
-    question_intent: str = ""
-    sources: list = []
 
 def _json_safe(value):
     if value is None:
@@ -262,12 +231,36 @@ def format_sources(results, dataset: str):
     return sources
 
 
+def format_seed_sources(sample_games):
+    return [
+        {
+            "label": f"Source {i}",
+            "type": "Seed Matchup Sample",
+            "team": "",
+            "season": "",
+            "metadata": "NCAA Tournament Results",
+            "text": _json_safe(text),
+        }
+        for i, text in enumerate(sample_games, start=1)
+    ]
+
+
+class ChatAnswer(NamedTuple):
+    text: str
+    latency_ms: float
+    outcome: str
+    error_message: Optional[str] = None
+    token_used: str = "N/A"
+    response_time: str = "N/A"
+    question_intent: str = ""
+    sources: list = []
+
+
 class ChatService:
     @staticmethod
     def answer_question(question: str, temperature: float = 0.2) -> ChatAnswer:
         t0 = time.perf_counter()
-        
-        # Detect intent early for logging
+
         intent, intent_metadata = detect_intent(question)
         intent_str = intent.value
 
@@ -293,8 +286,7 @@ class ChatService:
                 sources=sources or [],
             )
 
-        # Seed Matchup Block ---------------------------------------------------------------------
-
+        # Seed Matchup Block
         seed_a, seed_b = extract_seeds(question)
         if seed_a is not None and seed_b is not None:
             try:
@@ -305,7 +297,7 @@ class ChatService:
                     "error",
                     error_message=str(exc),
                 )
-            
+
             total = len(matching)
             if total == 0:
                 return done(
@@ -313,13 +305,15 @@ class ChatService:
                     f"tournament dataset (1985-present).",
                     "no_results",
                 )
-            
+
             upset_count = len(upsets)
             pct = (upset_count / total) * 100.0
             favorite = min(seed_a, seed_b)
             underdog = max(seed_a, seed_b)
 
             sample_games = matching.head(10)["text_chunk"].tolist()
+            sources = format_seed_sources(sample_games)
+
             context_lines = [
                 f"Matchup: #{favorite} seed vs #{underdog} seed",
                 f"Total games in dataset: {total}",
@@ -346,6 +340,7 @@ class ChatService:
                     "trend_success",
                     token_used=payload.get("token_used", "N/A"),
                     response_time=payload.get("response_time"),
+                    sources=sources,
                 )
             except Exception as exc:
                 header = _friendly_llm_failure_message(exc)
@@ -367,12 +362,10 @@ class ChatService:
                     "\n".join(lines),
                     "llm_fallback",
                     error_message=str(exc),
+                    sources=sources,
                 )
 
-        # ---------------------------------------------------------------------------------------
-
-        # Team Comparison Block -------------------------------------------------------------
-
+        # Team Comparison Block
         team1, team2 = extract_teams(question)
         if team1 and team2:
             try:
@@ -390,6 +383,9 @@ class ChatService:
                     "I could not find sufficient data for one or both teams.",
                     "no_results",
                 )
+
+            comparison_results = results_team1 + results_team2
+            sources = format_sources(comparison_results, "teams")
 
             context_team1 = "\n".join([
                 f"{r['team']} ({r['season']}): {r['text']}"
@@ -416,6 +412,7 @@ class ChatService:
                     "success",
                     token_used=payload.get("token_used", "N/A"),
                     response_time=payload.get("response_time"),
+                    sources=sources,
                 )
             except Exception as exc:
                 lines = [f"Comparison data for {team1.upper()} vs {team2.upper()}:"]
@@ -427,15 +424,12 @@ class ChatService:
                     "\n".join(lines),
                     "llm_fallback",
                     error_message=str(exc),
+                    sources=sources,
                 )
-            
-        # --------------------------------------------------------------------------------------
 
-        # Default Block: Use intent detection to select appropriate prompt ---------------------
-
+        # Default Block
         intent, intent_metadata = detect_intent(question)
         dataset = route_dataset(question)
-        is_trend = is_trend_query(question)
         top_k = 50 if dataset == "tournament" else 3
 
         try:
@@ -453,27 +447,27 @@ class ChatService:
                 "no_results",
             )
 
+        sources = format_sources(results, dataset)
+
         context_parts = []
         for result in results:
             if dataset == "tournament":
                 context_parts.append(f"{result['text']}")
             else:
                 context_parts.append(
-                f"Result {result['rank']}: "
-                f"Team={result['team']}, Season={result['season']}, "
-                f"Conference={result['conference']}, Seed={result['seed']}, "
-                f"Region={result['region']}. Details: {result['text']}"
-            )
+                    f"Result {result['rank']}: "
+                    f"Team={result['team']}, Season={result['season']}, "
+                    f"Conference={result['conference']}, Seed={result['seed']}, "
+                    f"Region={result['region']}. Details: {result['text']}"
+                )
         context = "\n".join(context_parts)
 
         try:
             llm = LLMService()
             prompt_template = PromptSelector.get_prompt(intent)
-            
-            # Build template params based on intent
+
             template_params = {"context": context, "question": question}
-            
-            # Add any metadata-driven params
+
             if intent == QuestionIntent.TEAM_STATS and "team" in intent_metadata:
                 template_params["team"] = intent_metadata["team"]
             elif intent == QuestionIntent.PREDICTION and "team1" in intent_metadata:
@@ -481,8 +475,7 @@ class ChatService:
                 template_params["team2"] = intent_metadata.get("team2", "")
             elif intent == QuestionIntent.TREND_ANALYSIS:
                 template_params["question"] = question
-            
-            # Use lower temperature for stats/factual; higher for creative/predictive
+
             temp_override = None
             if intent in [QuestionIntent.TEAM_STATS, QuestionIntent.RULES_EXPLANATION]:
                 temp_override = 0.5
@@ -490,14 +483,13 @@ class ChatService:
                 temp_override = 0.7
             elif intent == QuestionIntent.PREDICTION:
                 temp_override = 0.8
-            
+
             payload = llm.generate_answer(
                 prompt_template,
                 template_params,
                 temperature_override=temp_override or temperature,
             )
-            
-            # Map intent to outcome for logging
+
             outcome_map = {
                 QuestionIntent.FACTUAL_LOOKUP: "success",
                 QuestionIntent.TEAM_COMPARISON: "success",
@@ -508,19 +500,19 @@ class ChatService:
                 QuestionIntent.RULES_EXPLANATION: "success",
             }
             outcome = outcome_map.get(intent, "success")
-            
+
             return done(
                 payload["text"].strip(),
                 outcome,
                 token_used=payload.get("token_used", "N/A"),
                 response_time=payload.get("response_time"),
+                sources=sources,
             )
         except Exception as exc:
             header = _friendly_llm_failure_message(exc)
 
             if intent == QuestionIntent.TREND_ANALYSIS and dataset == "tournament":
                 lines = [header, "", "Upset trend analysis (dataset-driven fallback):"]
-                df = STORE["tournament"]["df"]
                 seed_counts = {("12", "5"): 0, ("11", "6"): 0, ("10", "7"): 0}
 
                 for r in results:
@@ -544,17 +536,16 @@ class ChatService:
                         any_found = True
                 if not any_found:
                     lines.append("- No classic upset matchups in retrieved samples")
- 
+
                 lines.append("\nSample Games:")
                 for r in results:
                     lines.append(f"{r['text'][:150]}")
- 
+
                 lines.append(
                     "\nNote: This is a sample-based estimate, not full dataset statistics."
                 )
             else:
                 lines = [header, "", "Retrieved rows from the dataset:"]
-
                 for r in results:
                     lines.append(f"- {r['text']}")
 
@@ -562,4 +553,5 @@ class ChatService:
                 "\n".join(lines),
                 "llm_fallback",
                 error_message=str(exc),
+                sources=sources,
             )
