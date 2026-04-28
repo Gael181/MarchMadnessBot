@@ -948,3 +948,130 @@ button {
     border: 1px solid rgba(192, 96, 96, 0.4);
     color: #ffd3d3;
 }
+.dataset-list,
+.uploaded-data-list {
+    max-width: 920px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 14px 0 30px;
+}
+
+.data-banner {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px 20px;
+    border-radius: 16px;
+    border: 1px solid #4d5a73;
+    background: linear-gradient(135deg, #2b3242 0%, #242b37 100%);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+
+.data-banner:hover {
+    border-color: #7085ad;
+    transform: translateY(-1px);
+    transition: 0.18s ease;
+}
+
+.dataset-banner {
+    background: linear-gradient(135deg, #3b345d 0%, #2c2a46 100%);
+    border-color: #675f96;
+}
+
+.uploaded-banner {
+    background: linear-gradient(135deg, #2b3e61 0%, #24344f 100%);
+    border-color: #5c79aa;
+}
+
+.data-banner-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.data-banner-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #f0f3f8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.data-banner-subtitle {
+    font-size: 13px;
+    color: #ccd4e2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.data-banner-preview {
+    font-size: 14px;
+    color: #e0e6f0;
+    line-height: 1.4;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.data-banner-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.banner-delete-btn {
+    min-width: 40px;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(20, 24, 36, 0.28);
+    color: #f5f7fb;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.18s ease;
+}
+
+.banner-delete-btn:hover {
+    background: rgba(154, 62, 62, 0.85);
+    border-color: rgba(255, 180, 180, 0.65);
+    color: #ffffff;
+}
+
+.banner-protected-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(20, 24, 36, 0.24);
+    color: #e2e7f0;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.empty-uploaded-data {
+    max-width: 920px;
+    background: #24272B;
+    border: 1px dashed #4d5a73;
+    border-radius: 16px;
+    padding: 18px;
+    color: #aeb8c8;
+    font-size: 14px;
+}
