@@ -27,6 +27,12 @@ class Message(models.Model):
     content = models.TextField()
     token_used = models.CharField(max_length=50, default='N/A')
     response_time = models.CharField(max_length=50, default='N/A')
+    question_intent = models.CharField(
+        max_length=50,
+        default="",
+        blank=True,
+        help_text="Detected question intent for assistant responses (e.g., factual_lookup, team_comparison)"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -44,12 +50,19 @@ class RagQueryLog(models.Model):
     latency_ms = models.PositiveIntegerField()
     outcome = models.CharField(max_length=32)
     error_message = models.TextField(blank=True)
+    question_intent = models.CharField(
+        max_length=50,
+        default="",
+        blank=True,
+        help_text="Detected question intent (e.g., factual_lookup, team_comparison, trend_analysis)"
+    )
 
     class Meta:
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['-created_at']),
             models.Index(fields=['outcome', '-created_at']),
+            models.Index(fields=['question_intent', '-created_at']),
         ]
 
     def __str__(self):

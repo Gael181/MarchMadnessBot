@@ -4,6 +4,7 @@ from typing import NamedTuple, Optional, Tuple
 
 from bot.dataset import search, initialize, STORE, is_Upset
 from bot.services.llm_service import LLMService
+from bot.services.prompts import QuestionIntent, PromptSelector
 
 def route_dataset(question: str) -> str:
     q = question.lower()
@@ -75,6 +76,94 @@ def is_trend_query(question: str) -> bool:
         "trend", "how often", "most common", "frequency", "upset"
     ])
 
+def is_team_stats_query(question: str) -> bool:
+    """Detect queries focused on team statistics and records."""
+    q = question.lower()
+    return any(k in q for k in [
+        "stats", "record", "how many", "what is the record",
+        "wins", "losses", "win-loss", "tournament record",
+        "conference record", "seed history"
+    ])
+
+def is_prediction_query(question: str) -> bool:
+    """Detect hypothetical prediction queries."""
+    q = question.lower()
+    return any(k in q for k in [
+        "would", "if ", "how would", "could ", "match up",
+        "matchup", "vs if", "hypothetical", "what if",
+        "who would win"
+    ])
+
+def is_rules_query(question: str) -> bool:
+    """Detect tournament rules and structure explanation queries."""
+    q = question.lower()
+    return any(k in q for k in [
+        "what is", "what does", "mean", "explain", "rule",
+        "how does", "seeding", "seed mean", "tournament structure",
+        "bracket", "what's a"
+    ])
+
+def detect_intent(question: str) -> Tuple[QuestionIntent, dict]:
+    """
+    Detect the primary intent of a user question.
+    
+    Returns a tuple of (QuestionIntent, metadata_dict) where metadata includes:
+    - For SEED_MATCHUP: "seed_a", "seed_b"
+    - For TEAM_COMPARISON: "team1", "team2"
+    - For TEAM_STATS: "team"
+    - For PREDICTION: "team1", "team2"
+    - For others: {}
+    
+    Decision tree:
+    1. Seed matchup (specific seed numbers)
+    2. Team comparison (two teams mentioned)
+    3. Trend analysis (trend/upset keywords + tournament context)
+    4. Team stats (stats/record keywords)
+    5. Prediction (hypothetical keywords)
+    6. Rules explanation (explanation keywords)
+    7. Fallback to factual lookup
+    """
+    metadata = {}
+    
+    # Check for seed matchup first (most specific)
+    seed_a, seed_b = extract_seeds(question)
+    if seed_a is not None and seed_b is not None:
+        metadata = {"seed_a": seed_a, "seed_b": seed_b}
+        return QuestionIntent.SEED_MATCHUP, metadata
+    
+    # Check for team comparison (two teams)
+    team1, team2 = extract_teams(question)
+    if team1 and team2:
+        # If it looks like a prediction, classify as prediction instead
+        if is_prediction_query(question):
+            metadata = {"team1": team1, "team2": team2}
+            return QuestionIntent.PREDICTION, metadata
+        # Otherwise it's a comparison
+        metadata = {"team1": team1, "team2": team2}
+        return QuestionIntent.TEAM_COMPARISON, metadata
+    
+    # Check for trend analysis (specific keywords + tournament dataset)
+    if is_trend_query(question):
+        dataset = route_dataset(question)
+        if dataset == "tournament":
+            return QuestionIntent.TREND_ANALYSIS, metadata
+    
+    # Check for team stats (one team mentioned)
+    if is_team_stats_query(question) and team1:
+        metadata = {"team": team1}
+        return QuestionIntent.TEAM_STATS, metadata
+    
+    # Check for prediction (but no specific teams extracted yet)
+    if is_prediction_query(question):
+        return QuestionIntent.PREDICTION, metadata
+    
+    # Check for rules/explanation
+    if is_rules_query(question):
+        return QuestionIntent.RULES_EXPLANATION, metadata
+    
+    # Default fallback
+    return QuestionIntent.FACTUAL_LOOKUP, metadata
+
 def _filter_tournament_by_seeds(seed_a: int, seed_b: int):
     initialize("tournament")
     df = STORE["tournament"]["df"]
@@ -117,7 +206,8 @@ def _friendly_llm_failure_message(exc: Exception) -> str:
 
     return (
         "The language model could not generate a reply right now. "
-        "Here is evidence retrieved from the dataset instead:"
+        "Here is evidence retrieved from the dataset instead:\n"
+        +"error = "+lower
     )
 
 
@@ -128,12 +218,17 @@ class ChatAnswer(NamedTuple):
     error_message: Optional[str] = None
     token_used: str = "N/A"
     response_time: str = "N/A"
+    question_intent: str = ""
 
 
 class ChatService:
     @staticmethod
     def answer_question(question: str, temperature: float = 0.2) -> ChatAnswer:
         t0 = time.perf_counter()
+        
+        # Detect intent early for logging
+        intent, intent_metadata = detect_intent(question)
+        intent_str = intent.value
 
         def done(
             text: str,
@@ -152,6 +247,7 @@ class ChatService:
                 error_message=error_message,
                 token_used=token_used,
                 response_time=rt,
+                question_intent=intent_str,
             )
 
         # Seed Matchup Block ---------------------------------------------------------------------
@@ -193,10 +289,14 @@ class ChatService:
             context = "\n".join(context_lines)
 
             try:
-                payload = LLMService().generate_trend_answer(
-                    question,
-                    context,
-                    temperature=0.7,
+                payload = LLMService().generate_answer(
+                    PromptSelector.get_prompt(QuestionIntent.SEED_MATCHUP),
+                    {
+                        "seed_a": seed_a,
+                        "seed_b": seed_b,
+                        "context": context,
+                    },
+                    temperature_override=0.7,
                 )
                 return done(
                     payload["text"].strip(),
@@ -258,12 +358,15 @@ class ChatService:
             ])
 
             try:
-                payload = LLMService().generate_comparison_answer(
-                    team1,
-                    team2,
-                    context_team1,
-                    context_team2,
-                    temperature=temperature,
+                payload = LLMService().generate_answer(
+                    PromptSelector.get_prompt(QuestionIntent.TEAM_COMPARISON),
+                    {
+                        "team1": team1,
+                        "team2": team2,
+                        "context1": context_team1,
+                        "context2": context_team2,
+                    },
+                    temperature_override=temperature,
                 )
                 return done(
                     payload["text"].strip(),
@@ -285,6 +388,9 @@ class ChatService:
             
         # --------------------------------------------------------------------------------------
 
+        # Default Block: Use intent detection to select appropriate prompt ---------------------
+
+        intent, intent_metadata = detect_intent(question)
         dataset = route_dataset(question)
         is_trend = is_trend_query(question)
         top_k = 50 if dataset == "tournament" else 3
@@ -319,21 +425,46 @@ class ChatService:
 
         try:
             llm = LLMService()
-
-            if dataset == "tournament" and is_trend:
-                payload = llm.generate_trend_answer(
-                    question,
-                    context,
-                    temperature=0.7,
-                )
-                outcome = "trend_success"
-            else:
-                payload = LLMService().generate_grounded_answer(
-                    question,
-                    context,
-                    temperature=temperature,
-                )
-                outcome = "success"
+            prompt_template = PromptSelector.get_prompt(intent)
+            
+            # Build template params based on intent
+            template_params = {"context": context, "question": question}
+            
+            # Add any metadata-driven params
+            if intent == QuestionIntent.TEAM_STATS and "team" in intent_metadata:
+                template_params["team"] = intent_metadata["team"]
+            elif intent == QuestionIntent.PREDICTION and "team1" in intent_metadata:
+                template_params["team1"] = intent_metadata["team1"]
+                template_params["team2"] = intent_metadata.get("team2", "")
+            elif intent == QuestionIntent.TREND_ANALYSIS:
+                template_params["question"] = question
+            
+            # Use lower temperature for stats/factual; higher for creative/predictive
+            temp_override = None
+            if intent in [QuestionIntent.TEAM_STATS, QuestionIntent.RULES_EXPLANATION]:
+                temp_override = 0.5
+            elif intent == QuestionIntent.TREND_ANALYSIS:
+                temp_override = 0.7
+            elif intent == QuestionIntent.PREDICTION:
+                temp_override = 0.8
+            
+            payload = llm.generate_answer(
+                prompt_template,
+                template_params,
+                temperature_override=temp_override or temperature,
+            )
+            
+            # Map intent to outcome for logging
+            outcome_map = {
+                QuestionIntent.FACTUAL_LOOKUP: "success",
+                QuestionIntent.TEAM_COMPARISON: "success",
+                QuestionIntent.SEED_MATCHUP: "trend_success",
+                QuestionIntent.TREND_ANALYSIS: "trend_success",
+                QuestionIntent.TEAM_STATS: "success",
+                QuestionIntent.PREDICTION: "success",
+                QuestionIntent.RULES_EXPLANATION: "success",
+            }
+            outcome = outcome_map.get(intent, "success")
             
             return done(
                 payload["text"].strip(),
@@ -344,7 +475,7 @@ class ChatService:
         except Exception as exc:
             header = _friendly_llm_failure_message(exc)
 
-            if is_trend and dataset == "tournament":
+            if intent == QuestionIntent.TREND_ANALYSIS and dataset == "tournament":
                 lines = [header, "", "Upset trend analysis (dataset-driven fallback):"]
                 df = STORE["tournament"]["df"]
                 seed_counts = {("12", "5"): 0, ("11", "6"): 0, ("10", "7"): 0}

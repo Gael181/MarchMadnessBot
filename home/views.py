@@ -83,6 +83,7 @@ def save_message(request, chat_id):
                 latency_ms=max(0, min(2_147_483_647, int(round(answer.latency_ms)))),
                 outcome=answer.outcome,
                 error_message=answer.error_message or '',
+                question_intent=answer.question_intent,
             )
 
             Message.objects.create(
@@ -91,6 +92,7 @@ def save_message(request, chat_id):
                 content=answer.text,
                 token_used=answer.token_used,
                 response_time=answer.response_time,
+                question_intent=answer.question_intent,
             )
 
     return redirect('chat_detail', chat_id=chat.id)
