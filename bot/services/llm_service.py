@@ -7,9 +7,8 @@ try:
 except ImportError:
     pass
 
-import google.genai as genai
+from google import genai
 from bot.services.prompts import PromptTemplate
-
 
 class LLMService:
     def __init__(self):

@@ -1,5 +1,7 @@
 from datetime import timedelta
 
+from bot import dataset
+from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -136,6 +138,45 @@ def _percentile(sorted_vals, p: float) -> float:
         return float(sorted_vals[int(k)])
     return float(sorted_vals[f] + (sorted_vals[c] - sorted_vals[f]) * (k - f))
 
+@login_required
+def data_ingestion(request):
+    """Staff-only data ingestion page"""
+    if not request.user.is_staff:
+        raise PermissionDenied
+
+    if request.method == "POST":
+        ingestion_type = request.POST.get("ingestion_type")
+
+        try:
+            if ingestion_type == "csv":
+                uploaded_file = request.FILES.get("csv_file")
+                rows_indexed = dataset.ingest_uploaded_csv(uploaded_file)
+
+                messages.success(
+                    request,
+                    f"CSV uploaded, cleaned, and indexed successfully. Total indexed rows: {rows_indexed}."
+                )
+
+            elif ingestion_type == "text":
+                title = request.POST.get("title", "").strip()
+                raw_text = request.POST.get("raw_text", "").strip()
+
+                rows_indexed = dataset.ingest_raw_text(raw_text, title=title)
+
+                messages.success(
+                    request,
+                    f"Text cleaned and indexed successfully. Total indexed rows: {rows_indexed}."
+                )
+
+            else:
+                messages.error(request, "Invalid ingestion type selected.")
+
+        except Exception as e:
+            messages.error(request, f"Ingestion failed: {e}")
+
+        return redirect("data_ingestion")
+
+    return render(request, "home/data_ingestion.html")
 
 @login_required
 def admin_portal(request):
