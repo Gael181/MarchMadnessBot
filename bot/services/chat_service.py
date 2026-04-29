@@ -275,8 +275,9 @@ class ChatService:
         ) -> ChatAnswer:
             elapsed_ms = (time.perf_counter() - t0) * 1000
             rt = response_time if response_time is not None else f"{int(round(elapsed_ms))}ms"
+            safe_text = text if isinstance(text, str) else str(text or "")
             return ChatAnswer(
-                text=text,
+                text=safe_text,
                 latency_ms=elapsed_ms,
                 outcome=outcome,
                 error_message=error_message,
@@ -326,7 +327,7 @@ class ChatService:
             context = "\n".join(context_lines)
 
             try:
-                payload = LLMService().generate_answer(
+                payload = LLMService().generate_trend_answer(
                     PromptSelector.get_prompt(QuestionIntent.SEED_MATCHUP),
                     {
                         "seed_a": seed_a,
@@ -397,7 +398,7 @@ class ChatService:
             ])
 
             try:
-                payload = LLMService().generate_answer(
+                payload = LLMService().generate_comparison_answer(
                     PromptSelector.get_prompt(QuestionIntent.TEAM_COMPARISON),
                     {
                         "team1": team1,
@@ -484,11 +485,24 @@ class ChatService:
             elif intent == QuestionIntent.PREDICTION:
                 temp_override = 0.8
 
-            payload = llm.generate_answer(
-                prompt_template,
-                template_params,
-                temperature_override=temp_override or temperature,
-            )
+            if intent == QuestionIntent.TREND_ANALYSIS:
+                payload = llm.generate_trend_answer(
+                    prompt_template,
+                    template_params,
+                    temperature_override=temp_override or temperature,
+                )
+            elif intent == QuestionIntent.TEAM_COMPARISON:
+                payload = llm.generate_comparison_answer(
+                    prompt_template,
+                    template_params,
+                    temperature_override=temp_override or temperature,
+                )
+            else:
+                payload = llm.generate_grounded_answer(
+                    prompt_template,
+                    template_params,
+                    temperature_override=temp_override or temperature,
+                )
 
             outcome_map = {
                 QuestionIntent.FACTUAL_LOOKUP: "success",

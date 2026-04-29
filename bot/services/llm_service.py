@@ -90,3 +90,39 @@ class LLMService:
             "token_used": "N/A",
             "response_time": f"{elapsed_ms}ms",
         }
+
+    def generate_trend_answer(
+        self,
+        prompt_template: PromptTemplate,
+        template_params: dict,
+        temperature_override: float = None,
+    ) -> dict:
+        return self.generate_answer(
+            prompt_template,
+            template_params,
+            temperature_override=temperature_override,
+        )
+
+    def generate_comparison_answer(
+        self,
+        prompt_template: PromptTemplate,
+        template_params: dict,
+        temperature_override: float = None,
+    ) -> dict:
+        return self.generate_answer(
+            prompt_template,
+            template_params,
+            temperature_override=temperature_override,
+        )
+
+    def generate_grounded_answer(
+        self,
+        prompt_template: PromptTemplate,
+        template_params: dict,
+        temperature_override: float = None,
+    ) -> dict:
+        return self.generate_answer(
+            prompt_template,
+            template_params,
+            temperature_override=temperature_override,
+        )
